@@ -22,7 +22,7 @@ public class GameSetting {
     public final static int MAX_NUMBER_OF_PARALLEL_TARGETS = 5;
 
 
-    public final static double LEVEL_PREVIEW_TIME = 0;
+    public final static double LEVEL_PREVIEW_TIME = 2000;
     public final static double MIN_TARGET_LIFETIME = 700;
     public final static double MAX_TARGET_LIFETIME = 1000;
 
