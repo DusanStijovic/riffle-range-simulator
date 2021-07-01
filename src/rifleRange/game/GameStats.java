@@ -4,11 +4,57 @@ import javafx.scene.Group;
 import javafx.scene.control.Label;
 import rifleRange.utility.Utility;
 
+import java.util.Calendar;
+
 public class GameStats {
     public static Group gameStatsGUI = new Group();
-
+    public static int numOfLevels;
+    public int numOfParallelTargetsOnScreen;
+    public int maxNumOfParallelTargetsOnScreen;
+    public int numOfTargetsInLevel;
+    public int currentNumberOfGeneratedTargetsInLevel;
     Label targetsLeftLabel = new Label();
     Label missileLeftLabel = new Label();
+    Label levelInfoLabel = new Label();
+    Label scoreLabel = new Label();
+    int targetsLeft = 0;
+    int missilesLeft = 0;
+    int currentLevel = 1;
+    double score = 0;
+    int numOfTargetsHit = 0;
+    long startTime = Calendar.getInstance().getTimeInMillis();
+    long elapsedTime = 0;
+
+    public static String getElapsedTimeNiceFormat(long elapsedTime) {
+        long secondsInMilli = 1000;
+        long minutesInMilli = secondsInMilli * 60;
+        long hoursInMilli = minutesInMilli * 60;
+        long daysInMilli = hoursInMilli * 24;
+
+        long elapsedDays = elapsedTime / daysInMilli;
+        elapsedTime = elapsedTime % daysInMilli;
+
+        long elapsedHours = elapsedTime / hoursInMilli;
+        elapsedTime = elapsedTime % hoursInMilli;
+
+        long elapsedMinutes = elapsedTime / minutesInMilli;
+        elapsedTime = elapsedTime % minutesInMilli;
+
+        long elapsedSeconds = elapsedTime / secondsInMilli;
+
+        return String.format(
+                "%d days, %d hours, %d minutes, %d seconds",
+                elapsedDays,
+                elapsedHours, elapsedMinutes, elapsedSeconds);
+    }
+
+    public double getScore() {
+        return score;
+    }
+
+    public long getElapsedTime() {
+        return elapsedTime;
+    }
 
     public Label getTargetsLeftLabel() {
         return targetsLeftLabel;
@@ -26,32 +72,14 @@ public class GameStats {
         return scoreLabel;
     }
 
-    Label levelInfoLabel = new Label();
-    Label scoreLabel = new Label();
-
-    int targetsLeft = 0;
-    int missilesLeft = 0;
-    int currentLevel = 0;
-    double score = 0;
-
     public int getCurrentLevel() {
         return currentLevel;
     }
 
-    int numOfTargetsHit = 0;
-    public static int numOfLevels;
-
-    public int numOfParallelTargetsOnScreen;
-    public int maxNumOfParallelTargetsOnScreen;
-
-    public int numOfTargetsInLevel;
-    public int currentNumberOfGeneretedTargersInLevel;
-
-
     public void setGameStatsInfo(int levelNumber) {
         targetsLeft = calculateNumberOfTargets(levelNumber);
         numOfTargetsInLevel = targetsLeft;
-        currentNumberOfGeneretedTargersInLevel = 0;
+        currentNumberOfGeneratedTargetsInLevel = 0;
         missilesLeft = calculateNumberOfMissile(targetsLeft, levelNumber);
         numOfParallelTargetsOnScreen = 0;
         maxNumOfParallelTargetsOnScreen = levelNumber % GameSetting.MAX_NUMBER_OF_PARALLEL_TARGETS;
@@ -63,9 +91,13 @@ public class GameStats {
     }
 
     public void targetHit(double points, double factor) {
-        score += calculateGains(points, factor);
-        numOfTargetsHit++;
-        scoreLabel.setText(String.valueOf(score));
+        synchronized (this) {
+            score += calculateGains(points, factor);
+            numOfTargetsHit++;
+            numOfParallelTargetsOnScreen--;
+            scoreLabel.setText(String.valueOf(score));
+
+        }
     }
 
     private double calculateGains(double points, double factor) {
@@ -73,13 +105,15 @@ public class GameStats {
     }
 
     public boolean updateMissileLeft() {
-        if (missilesLeft > 0) {
-            missilesLeft--;
-            missileLeftLabel.setText(String.valueOf(missilesLeft));
-            return missilesLeft == 0;
-        } else
-            return true;
-
+        System.out.println(missilesLeft);
+        synchronized (this) {
+            if (missilesLeft > 0) {
+                missilesLeft--;
+                updateMissileLeftDisplay();
+                return missilesLeft == 0;
+            } else
+                return true;
+        }
     }
 
     public int getTargetsLeft() {
@@ -91,29 +125,48 @@ public class GameStats {
     }
 
     public boolean updateTargetLeft() {
-        if (missilesLeft > 0) {
-            missilesLeft--;
-            targetsLeftLabel.setText(String.valueOf(missilesLeft));
-            return missilesLeft == 0;
-        } else return true;
-    }
-
-    public boolean updateLevel() {
-        if (currentLevel < numOfLevels) {
-            currentLevel++;
-            levelInfoLabel.setText(String.format("%d / %d", currentLevel, numOfLevels));
-            return false;
-        } else {
-            return true;
+        synchronized (this) {
+            if (targetsLeft > 0) {
+                targetsLeft--;
+                updateTargetsLeftDisplay();
+                return targetsLeft == 0;
+            } else return true;
         }
     }
 
-    public void setTargets(int targets) {
-        targetsLeftLabel.setText(String.valueOf(targets));
+    public synchronized void resetLevelDone(){
+        numOfParallelTargetsOnScreen = 0;
+        currentNumberOfGeneratedTargetsInLevel = 0;
+        numOfTargetsInLevel = 0;
     }
 
-    public void setMissile(int missile) {
-        missileLeftLabel.setText(String.valueOf(missile));
+    public boolean updateLevel() {
+        synchronized (this) {
+            elapsedTime += Calendar.getInstance().getTimeInMillis() - startTime;
+            if (currentLevel < numOfLevels) {
+                currentLevel++;
+                setLevel();
+                return false;
+            } else {
+                return true;
+            }
+        }
+    }
+
+    public void setStartTime(long time) {
+        this.startTime = time;
+    }
+
+    public void updateTargetsLeftDisplay() {
+        targetsLeftLabel.setText(String.valueOf(targetsLeft));
+    }
+
+    public void updateMissileLeftDisplay() {
+        missileLeftLabel.setText(String.valueOf(missilesLeft));
+    }
+
+    public void setLevel() {
+        levelInfoLabel.setText(String.format("%d / %d", currentLevel, numOfLevels));
     }
 
 
@@ -128,6 +181,11 @@ public class GameStats {
 
     public int calculateMaxNumberOfParallelTargets(int levelNumber) {
         return levelNumber % GameSetting.MAX_NUMBER_OF_PARALLEL_TARGETS;
+    }
+
+
+    public int getHitTargets() {
+        return numOfTargetsHit;
     }
 
 

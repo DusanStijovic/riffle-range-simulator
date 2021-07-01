@@ -1,16 +1,20 @@
 package rifleRange.GUI;
 
 import javafx.animation.AnimationTimer;
+import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.ImageCursor;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -29,7 +33,6 @@ import java.util.Calendar;
 public class SceneGenerator {
     private SceneGenerator() {
     }
-
 
     public static Scene makeEntryScene() {
 
@@ -105,7 +108,7 @@ public class SceneGenerator {
             public void handle(long l) {
                 long elapsed = Calendar.getInstance().getTimeInMillis() - levelPreviewStartTime;
                 if (elapsed > GameSetting.LEVEL_PREVIEW_TIME) {
-                    Main.startGame(levelNumber);
+                    Main.startGamePlay(levelNumber);
                     this.stop();
                 }
 
@@ -159,6 +162,14 @@ public class SceneGenerator {
         SceneGenerator.addBackgroundToScene(scene, levelNumber);
         SceneGenerator.setCursorScene(scene, GameSetting.CURSOR_PICTURE);
 
+        int i[] = {0};
+        scene.addEventHandler(MouseEvent.MOUSE_CLICKED, (event) -> {
+            boolean endLevel2 = Main.gameStats.updateMissileLeft();
+            System.out.println("CAO" + i[0]++);
+            Main.checkGameEnd();
+            event.consume();
+        });
+
         return scene;
     }
 
@@ -168,7 +179,6 @@ public class SceneGenerator {
         root.getTransforms().addAll(
                 new Translate((GameSetting.WIDTH - 30 * 12) / 2, GameSetting.HEIGHT / 4)
         );
-
 
         Scene scene = new Scene(root, GameSetting.WIDTH, GameSetting.HEIGHT);
         scene.setFill(Color.web(GameSetting.BACKGROUND_COLOR));
@@ -224,4 +234,50 @@ public class SceneGenerator {
     }
 
 
+    public static Scene getGameEndScreen(GameStats gameStats) {
+        System.out.println("OVDE SAM");
+        Group root = new Group();
+        Rectangle rectangle = new Rectangle(0, 0, 100, 100);
+        GridPane grid = new GridPane();
+        grid.setAlignment(Pos.BASELINE_CENTER);
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(25, 25, 25, 25));
+
+        Text sceneTitle = new Text("Report");
+        sceneTitle.setFont(Font.font(GameSetting.TEXT_FONT, FontWeight.NORMAL, 20));
+        sceneTitle.setFill(Color.WHITE);
+        grid.add(sceneTitle, 0, 0, 2, 1);
+
+        setKeyAndValueOnGrid(grid, "targets hit", String.valueOf(gameStats.getHitTargets()), 2);
+        setKeyAndValueOnGrid(grid, "point", String.valueOf(gameStats.getScore()), 3);
+        setKeyAndValueOnGrid(grid, "time", String.valueOf(GameStats.getElapsedTimeNiceFormat(gameStats.getElapsedTime())), 4);
+
+        Button newGameButton = new Button("Start new game");
+        grid.add(newGameButton, 0, 5, 2, 1);
+
+        newGameButton.addEventHandler(MouseEvent.MOUSE_CLICKED, (event) -> {
+            Main.startGame();
+        });
+
+        root.getChildren().addAll(grid);
+
+//        root.getTransforms().addAll(
+//                new Translate(GameSetting.WIDTH / 2 -, 0)
+//        );
+
+        Scene scene = new Scene(root, GameSetting.WIDTH, GameSetting.HEIGHT);
+        scene.setFill(Color.web(GameSetting.BACKGROUND_COLOR));
+        return scene;
+    }
+
+    private static void setKeyAndValueOnGrid(GridPane grid, String key, String value, int row) {
+        Label keyLabel = new Label(key);
+        keyLabel.setTextFill(Color.WHITE);
+        grid.add(keyLabel, 0, row);
+
+        Label valueLabel = new Label(value);
+        valueLabel.setTextFill(Color.WHITE);
+        grid.add(valueLabel, 1, row);
+    }
 }
